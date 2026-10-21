@@ -59,7 +59,7 @@
       <form id="crop-form">
         <div class="form-group">
           <label for="crop-name">作物名・品種</label>
-          <input type="text" id="crop-name" placeholder="例: ミニトマト" required>
+          <input type="text" id="crop-name" placeholder="例: カボチャ" required>
         </div>
         <div class="form-group">
           <label for="action-type">作業・状態</label>
@@ -78,7 +78,7 @@
         </div>
         <div class="form-group">
           <label for="memo">メモ・気になる症状</label>
-          <textarea id="memo" rows="3" placeholder="例: 葉っぱの先が黄色くなって枯れてきました。対策を教えてください。"></textarea>
+          <textarea id="memo" rows="3" placeholder="例: 葉っぱに白い斑点が出てきました。"></textarea>
         </div>
         <div style="display: flex; gap: 8px;">
           <button type="submit" class="btn" style="flex: 1;">記録を保存</button>
@@ -109,8 +109,8 @@
     import { getAuth, signInWithPopup, signInAnonymously, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // ★ ご自身の API キーに書き換えてください（無料取得可）
-    const GEMINI_API_KEY = "AQ.Ab8RN6Lz9lTRoVq5DK3bidlkwREfUSE5HrFfnqqU_QNdc0fYnA";
+    // ★ ここにご自身の Gemini API キーを設定してください
+    const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAO4mkYVhTktpK3Up0E0o4p_57L5fwuNdQ",
@@ -146,7 +146,7 @@
       reader.readAsDataURL(file);
     });
 
-    // Gemini API 呼び出し関数
+    // Gemini API 呼び出し関数 (gemini-1.5-flashを使用)
     async function diagnoseWithGemini() {
       const cropName = document.getElementById("crop-name").value || "植物";
       const memo = document.getElementById("memo").value || "状態を診断してください。";
@@ -173,16 +173,21 @@
           contents = [{ parts: [{ text: promptText }] }];
         }
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contents })
         });
 
         const data = await response.json();
-        currentAiDiagnosis = data.candidates[0].content.parts[0].text;
-        aiOutputEl.innerHTML = currentAiDiagnosis.replace(/\n/g, "<br>");
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+          currentAiDiagnosis = data.candidates[0].content.parts[0].text;
+          aiOutputEl.innerHTML = currentAiDiagnosis.replace(/\n/g, "<br>");
+        } else {
+          throw new Error("APIからの応答が不十分です");
+        }
       } catch (err) {
+        console.error("Gemini Error:", err);
         currentAiDiagnosis = "AI診断に失敗しました。画像や入力内容を確認してください。";
         aiOutputEl.textContent = currentAiDiagnosis;
       }
@@ -190,7 +195,7 @@
 
     document.getElementById("ai-diagnose-btn").addEventListener("click", diagnoseWithGemini);
 
-    // ログイン関係
+    // ログイン処理
     document.getElementById("google-login-btn").addEventListener("click", () => signInWithPopup(auth, provider));
     document.getElementById("anon-login-btn").addEventListener("click", () => signInAnonymously(auth));
     document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
@@ -257,7 +262,7 @@
       }
     };
 
-    // リアルタイム表示
+    // リアルタイム表示（JavaScript側で降順ソート）
     function loadLogs() {
       if (!currentUser) return;
       const q = query(collection(db, "crop_logs"));
