@@ -1,215 +1,9 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropPulse - 作物栽培日誌</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f0fdf4; color: #166534; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    header { border-bottom: 2px solid #bbf7d0; padding-bottom: 16px; margin-bottom: 24px; }
-    .header-top { display: flex; justify-content: space-between; align-items: center; }
-    h1 { font-size: 1.25rem; font-weight: 700; color: #15803d; }
-    .btn { background: #16a34a; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .btn:hover { background: #15803d; }
-    .btn-secondary { background: #e2e8f0; color: #475569; }
-    .btn-secondary:hover { background: #cbd5e1; }
-    .btn-anon { background: #64748b; color: #ffffff; }
-    .btn-anon:hover { background: #475569; }
-    .btn-danger { background: #ef4444; color: #ffffff; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px; border: none; cursor: pointer; }
-    .btn-danger:hover { background: #dc2626; }
-    .hidden { display: none !important; }
-    .auth-buttons { display: flex; gap: 8px; }
-    .form-group { margin-bottom: 16px; }
-    label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
-    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 0.95rem; }
-    input:focus, select:focus, textarea:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2); }
-    .card { background: #f0fdf4; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-    .card-title { font-weight: 700; color: #166534; }
-    .user-box { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-    .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: #dcfce7; color: #15803d; font-weight: 600; }
-  </style>
-</head>
-<body>
-
-  <div class="container">
-    <header>
-      <div class="header-top">
-        <h1>🌱 CropPulse</h1>
-        <div id="auth-section">
-          <!-- 未ログイン時のログインボタン群 -->
-          <div id="login-buttons" class="auth-buttons">
-            <button id="google-login-btn" class="btn">Googleログイン</button>
-            <button id="anon-login-btn" class="btn btn-anon">ゲスト(匿名)ログイン</button>
-          </div>
-          <!-- ログイン完了時の表示 -->
-          <div id="user-info" class="user-box hidden">
-            <span id="user-name" style="font-weight: 600; font-size: 0.875rem;"></span>
-            <span id="user-type-badge" class="badge"></span>
-            <button id="logout-btn" class="btn btn-secondary" style="margin-left: auto;">ログアウト</button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- 栽培記録入力フォーム -->
-    <section id="form-section" class="hidden">
-      <form id="crop-form">
-        <div class="form-group">
-          <label for="crop-name">作物名・品種</label>
-          <input type="text" id="crop-name" placeholder="例: ミニトマト" required>
-        </div>
-        <div class="form-group">
-          <label for="action-type">作業内容</label>
-          <select id="action-type" required>
-            <option value="水やり">水やり</option>
-            <option value="追肥">追肥</option>
-            <option value="消毒・防除">消毒・防除</option>
-            <option value="収穫">収穫</option>
-            <option value="観察記録">観察記録</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="memo">メモ・観察日記</label>
-          <textarea id="memo" rows="3" placeholder="例: 葉の色が良く、小さな実がつき始めました。"></textarea>
-        </div>
-        <button type="submit" class="btn" style="width: 100%;">記録を保存する</button>
-      </form>
-      <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
-    </section>
-
-    <!-- ログ一覧表示 -->
-    <section>
-      <h2 style="font-size: 1rem; margin-bottom: 12px;">栽培ログ一覧</h2>
-      <div id="logs-list">
-        <p style="text-align: center; color: #94a3b8; padding: 24px 0;">ログインすると栽培記録の閲覧・登録ができます。</p>
-      </div>
-    </section>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithPopup, signInAnonymously, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAO4mkYVhTktpK3Up0E0o4p_57L5fwuNdQ",
-      authDomain: "croppulse-806e9.firebaseapp.com",
-      projectId: "croppulse-806e9",
-      storageBucket: "croppulse-806e9.firebasestorage.app",
-      messagingSenderId: "276931504826",
-      appId: "1:276931504826:web:be2a1db9f5227e1902f083"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const provider = new GoogleAuthProvider();
-
-    let currentUser = null;
-    let unsubscribeSnapshot = null;
-
-    // Googleログイン
-    document.getElementById("google-login-btn").addEventListener("click", async () => {
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (err) {
-        alert("Googleログインエラー: " + err.message);
-      }
-    });
-
-    // 匿名(ゲスト)ログイン
-    document.getElementById("anon-login-btn").addEventListener("click", async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (err) {
-        alert("匿名ログインエラー: " + err.message);
-      }
-    });
-
-    // ログアウト
-    document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
-
-    // 認証状態監視
-    onAuthStateChanged(auth, (user) => {
-      currentUser = user;
-      const loginButtons = document.getElementById("login-buttons");
-      const userInfo = document.getElementById("user-info");
-      const formSection = document.getElementById("form-section");
-
-      if (user) {
-        loginButtons.classList.add("hidden");
-        userInfo.classList.remove("hidden");
-        formSection.classList.remove("hidden");
-
-        const userNameEl = document.getElementById("user-name");
-        const badgeEl = document.getElementById("user-type-badge");
-
-        if (user.isAnonymous) {
-          userNameEl.textContent = "ゲストユーザー";
-          badgeEl.textContent = "匿名";
-          badgeEl.style.background = "#e2e8f0";
-          badgeEl.style.color = "#475569";
-        } else {
-          userNameEl.textContent = user.displayName || "Googleユーザー";
-          badgeEl.textContent = "Google認証済";
-          badgeEl.style.background = "#dcfce7";
-          badgeEl.style.color = "#15803d";
-        }
-
-        loadLogs();
-      } else {
-        if (unsubscribeSnapshot) {
-          unsubscribeSnapshot();
-          unsubscribeSnapshot = null;
-        }
-        loginButtons.classList.remove("hidden");
-        userInfo.classList.add("hidden");
-        formSection.classList.add("hidden");
-        document.getElementById("logs-list").innerHTML = 
-          '<p style="text-align: center; color: #94a3b8; padding: 24px 0;">ログインすると栽培記録の閲覧・登録ができます。</p>';
-      }
-    });
-
-    // データ保存
-    document.getElementById("crop-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!currentUser) return;
-
-      const displayName = currentUser.isAnonymous ? "ゲスト" : (currentUser.displayName || "Googleユーザー");
-
-      try {
-        await addDoc(collection(db, "crop_logs"), {
-          cropName: document.getElementById("crop-name").value,
-          actionType: document.getElementById("action-type").value,
-          memo: document.getElementById("memo").value,
-          userName: displayName,
-          userId: currentUser.uid,
-          createdAt: serverTimestamp()
-        });
-        document.getElementById("crop-form").reset();
-      } catch (err) {
-        alert("保存エラー: " + err.message);
-      }
-    });
-
-    // 削除処理
-    window.deleteLog = async (docId) => {
-      if (!confirm("この栽培記録を削除してもよろしいですか？")) return;
-
-      try {
-        await deleteDoc(doc(db, "crop_logs", docId));
-      } catch (err) {
-        alert("削除に失敗しました: " + err.message);
-      }
-    };
-
-    // リアルタイム読み込み
+// リアルタイム読み込み
     function loadLogs() {
       if (!currentUser) return;
 
-      const q = query(collection(db, "crop_logs"), orderBy("createdAt", "desc"));
+      // orderByを外してシンプルに全件取得
+      const q = query(collection(db, "crop_logs"));
 
       if (unsubscribeSnapshot) unsubscribeSnapshot();
 
@@ -222,11 +16,23 @@
           return;
         }
 
+        // 配列に変換してJavaScript側で新しい順（createdAt降順）に並び替え
+        const docsArray = [];
         snapshot.forEach((document) => {
-          const log = document.data();
-          const docId = document.id;
+          docsArray.push({ id: document.id, data: document.data() });
+        });
 
-          // 本人投稿判定（匿名ユーザーであっても自分の作成データなら削除ボタンを表示）
+        docsArray.sort((a, b) => {
+          const timeA = a.data.createdAt ? a.data.createdAt.toMillis() : Date.now();
+          const timeB = b.data.createdAt ? b.data.createdAt.toMillis() : Date.now();
+          return timeB - timeA;
+        });
+
+        docsArray.forEach((item) => {
+          const log = item.data;
+          const docId = item.id;
+
+          // 本人投稿判定
           const isMyPost = currentUser && log.userId === currentUser.uid;
 
           const card = document.createElement("div");
@@ -245,6 +51,3 @@
         console.error("Firestore Error:", error);
       });
     }
-  </script>
-</body>
-</html>
