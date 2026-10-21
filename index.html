@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CropPulse - 作物栽培日誌</title>
+  <title>CropPulse - AI植物診断＆栽培日誌</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #f0fdf4; color: #166534; padding: 20px; }
@@ -13,22 +13,25 @@
     h1 { font-size: 1.25rem; font-weight: 700; color: #15803d; }
     .btn { background: #16a34a; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     .btn:hover { background: #15803d; }
+    .btn-ai { background: #8b5cf6; color: #ffffff; }
+    .btn-ai:hover { background: #7c3aed; }
     .btn-secondary { background: #e2e8f0; color: #475569; }
     .btn-secondary:hover { background: #cbd5e1; }
     .btn-anon { background: #64748b; color: #ffffff; }
-    .btn-anon:hover { background: #475569; }
     .btn-danger { background: #ef4444; color: #ffffff; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px; border: none; cursor: pointer; }
-    .btn-danger:hover { background: #dc2626; }
     .hidden { display: none !important; }
     .auth-buttons { display: flex; gap: 8px; }
     .form-group { margin-bottom: 16px; }
     label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
     input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 0.95rem; }
-    input:focus, select:focus, textarea:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2); }
-    .card { background: #f0fdf4; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .card { background: #f0fdf4; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
     .card-title { font-weight: 700; color: #166534; }
     .user-box { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
     .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: #dcfce7; color: #15803d; font-weight: 600; }
+    .ai-result-box { background: #f3e8ff; border: 1px solid #d8b4fe; border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 0.85rem; color: #581c87; }
+    .img-preview { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 8px; object-fit: cover; }
+    .card-img { width: 100%; max-height: 250px; border-radius: 8px; margin: 8px 0; object-fit: cover; }
   </style>
 </head>
 <body>
@@ -36,14 +39,12 @@
   <div class="container">
     <header>
       <div class="header-top">
-        <h1>🌱 CropPulse</h1>
+        <h1>🌱 CropPulse AI</h1>
         <div id="auth-section">
-          <!-- 未ログイン時のログインボタン群 -->
           <div id="login-buttons" class="auth-buttons">
             <button id="google-login-btn" class="btn">Googleログイン</button>
-            <button id="anon-login-btn" class="btn btn-anon">ゲスト(匿名)ログイン</button>
+            <button id="anon-login-btn" class="btn btn-anon">ゲストログイン</button>
           </div>
-          <!-- ログイン完了時の表示 -->
           <div id="user-info" class="user-box hidden">
             <span id="user-name" style="font-weight: 600; font-size: 0.875rem;"></span>
             <span id="user-type-badge" class="badge"></span>
@@ -53,7 +54,7 @@
       </div>
     </header>
 
-    <!-- 栽培記録入力フォーム -->
+    <!-- 入力フォーム -->
     <section id="form-section" class="hidden">
       <form id="crop-form">
         <div class="form-group">
@@ -61,27 +62,42 @@
           <input type="text" id="crop-name" placeholder="例: ミニトマト" required>
         </div>
         <div class="form-group">
-          <label for="action-type">作業内容</label>
+          <label for="action-type">作業・状態</label>
           <select id="action-type" required>
+            <option value="病気・症状の相談">病気・症状の相談 (AI診断)</option>
             <option value="水やり">水やり</option>
             <option value="追肥">追肥</option>
-            <option value="消毒・防除">消毒・防除</option>
             <option value="収穫">収穫</option>
             <option value="観察記録">観察記録</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="memo">メモ・観察日記</label>
-          <textarea id="memo" rows="3" placeholder="例: 葉の色が良く、小さな実がつき始めました。"></textarea>
+          <label for="photo-input">植物の写真（写真添付でAIが自動診断）</label>
+          <input type="file" id="photo-input" accept="image/*">
+          <img id="preview-img" class="img-preview hidden">
         </div>
-        <button type="submit" class="btn" style="width: 100%;">記録を保存する</button>
+        <div class="form-group">
+          <label for="memo">メモ・気になる症状</label>
+          <textarea id="memo" rows="3" placeholder="例: 葉っぱの先が黄色くなって枯れてきました。対策を教えてください。"></textarea>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn" style="flex: 1;">記録を保存</button>
+          <button type="button" id="ai-diagnose-btn" class="btn btn-ai">✨ AIで症状を診断</button>
+        </div>
       </form>
+
+      <!-- AI診断プレビュー表示エリア -->
+      <div id="ai-status" class="ai-result-box hidden" style="margin-top: 16px;">
+        <strong>🤖 AI診断結果:</strong>
+        <p id="ai-output-text">診断中...</p>
+      </div>
+
       <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
     </section>
 
-    <!-- ログ一覧表示 -->
+    <!-- 一覧表示 -->
     <section>
-      <h2 style="font-size: 1rem; margin-bottom: 12px;">栽培ログ一覧</h2>
+      <h2 style="font-size: 1rem; margin-bottom: 12px;">栽培ログ＆AI診断履歴</h2>
       <div id="logs-list">
         <p style="text-align: center; color: #94a3b8; padding: 24px 0;">ログインすると栽培記録の閲覧・登録ができます。</p>
       </div>
@@ -92,6 +108,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithPopup, signInAnonymously, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ★ ご自身の API キーに書き換えてください（無料取得可）
+    const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAO4mkYVhTktpK3Up0E0o4p_57L5fwuNdQ",
@@ -109,29 +128,73 @@
 
     let currentUser = null;
     let unsubscribeSnapshot = null;
+    let currentBase64Image = "";
+    let currentAiDiagnosis = "";
 
-    // Googleログイン
-    document.getElementById("google-login-btn").addEventListener("click", async () => {
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (err) {
-        alert("Googleログインエラー: " + err.message);
-      }
+    // 画像プレビュー処理
+    document.getElementById("photo-input").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        currentBase64Image = event.target.result;
+        const imgEl = document.getElementById("preview-img");
+        imgEl.src = currentBase64Image;
+        imgEl.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
     });
 
-    // 匿名(ゲスト)ログイン
-    document.getElementById("anon-login-btn").addEventListener("click", async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (err) {
-        alert("匿名ログインエラー: " + err.message);
-      }
-    });
+    // Gemini API 呼び出し関数
+    async function diagnoseWithGemini() {
+      const cropName = document.getElementById("crop-name").value || "植物";
+      const memo = document.getElementById("memo").value || "状態を診断してください。";
+      const aiStatusEl = document.getElementById("ai-status");
+      const aiOutputEl = document.getElementById("ai-output-text");
 
-    // ログアウト
+      aiStatusEl.classList.remove("hidden");
+      aiOutputEl.textContent = "AIが植物の状態を分析中...";
+
+      try {
+        let contents = [];
+        let promptText = `あなたは農業と植物栽培のプロです。初心者向けに分かりやすく短くアドバイスしてください。\n対象の作物: ${cropName}\n観察メモ: ${memo}\n\n回答フォーマット:\n【可能性のある状態・病気】\n【対策とおすすめのケア】`;
+
+        if (currentBase64Image) {
+          const base64Data = currentBase64Image.split(",")[1];
+          const mimeType = currentBase64Image.split(";")[0].split(":")[1];
+          contents = [{
+            parts: [
+              { text: promptText },
+              { inline_data: { mime_type: mimeType, data: base64Data } }
+            ]
+          }];
+        } else {
+          contents = [{ parts: [{ text: promptText }] }];
+        }
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents })
+        });
+
+        const data = await response.json();
+        currentAiDiagnosis = data.candidates[0].content.parts[0].text;
+        aiOutputEl.innerHTML = currentAiDiagnosis.replace(/\n/g, "<br>");
+      } catch (err) {
+        currentAiDiagnosis = "AI診断に失敗しました。画像や入力内容を確認してください。";
+        aiOutputEl.textContent = currentAiDiagnosis;
+      }
+    }
+
+    document.getElementById("ai-diagnose-btn").addEventListener("click", diagnoseWithGemini);
+
+    // ログイン関係
+    document.getElementById("google-login-btn").addEventListener("click", () => signInWithPopup(auth, provider));
+    document.getElementById("anon-login-btn").addEventListener("click", () => signInAnonymously(auth));
     document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
 
-    // 認証状態監視
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
       const loginButtons = document.getElementById("login-buttons");
@@ -142,33 +205,15 @@
         loginButtons.classList.add("hidden");
         userInfo.classList.remove("hidden");
         formSection.classList.remove("hidden");
-
-        const userNameEl = document.getElementById("user-name");
-        const badgeEl = document.getElementById("user-type-badge");
-
-        if (user.isAnonymous) {
-          userNameEl.textContent = "ゲストユーザー";
-          badgeEl.textContent = "匿名";
-          badgeEl.style.background = "#e2e8f0";
-          badgeEl.style.color = "#475569";
-        } else {
-          userNameEl.textContent = user.displayName || "Googleユーザー";
-          badgeEl.textContent = "Google認証済";
-          badgeEl.style.background = "#dcfce7";
-          badgeEl.style.color = "#15803d";
-        }
-
+        document.getElementById("user-name").textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "Googleユーザー");
+        document.getElementById("user-type-badge").textContent = user.isAnonymous ? "匿名" : "認証済";
         loadLogs();
       } else {
-        if (unsubscribeSnapshot) {
-          unsubscribeSnapshot();
-          unsubscribeSnapshot = null;
-        }
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
         loginButtons.classList.remove("hidden");
         userInfo.classList.add("hidden");
         formSection.classList.add("hidden");
-        document.getElementById("logs-list").innerHTML = 
-          '<p style="text-align: center; color: #94a3b8; padding: 24px 0;">ログインすると栽培記録の閲覧・登録ができます。</p>';
+        document.getElementById("logs-list").innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 24px 0;">ログインすると栽培記録の閲覧・登録ができます。</p>';
       }
     });
 
@@ -184,11 +229,19 @@
           cropName: document.getElementById("crop-name").value,
           actionType: document.getElementById("action-type").value,
           memo: document.getElementById("memo").value,
+          imageUrl: currentBase64Image || "",
+          aiDiagnosis: currentAiDiagnosis || "",
           userName: displayName,
           userId: currentUser.uid,
           createdAt: serverTimestamp()
         });
+
+        // フォームリセット
         document.getElementById("crop-form").reset();
+        document.getElementById("preview-img").classList.add("hidden");
+        document.getElementById("ai-status").classList.add("hidden");
+        currentBase64Image = "";
+        currentAiDiagnosis = "";
       } catch (err) {
         alert("保存エラー: " + err.message);
       }
@@ -196,21 +249,18 @@
 
     // 削除処理
     window.deleteLog = async (docId) => {
-      if (!confirm("この栽培記録を削除してもよろしいですか？")) return;
-
+      if (!confirm("この記録を削除しますか？")) return;
       try {
         await deleteDoc(doc(db, "crop_logs", docId));
       } catch (err) {
-        alert("削除に失敗しました: " + err.message);
+        alert("削除エラー: " + err.message);
       }
     };
 
-    // リアルタイム読み込み（JavaScript側で降順ソート）
+    // リアルタイム表示
     function loadLogs() {
       if (!currentUser) return;
-
       const q = query(collection(db, "crop_logs"));
-
       if (unsubscribeSnapshot) unsubscribeSnapshot();
 
       unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
@@ -223,11 +273,8 @@
         }
 
         const docsArray = [];
-        snapshot.forEach((docItem) => {
-          docsArray.push({ id: docItem.id, data: docItem.data() });
-        });
+        snapshot.forEach((docItem) => docsArray.push({ id: docItem.id, data: docItem.data() }));
 
-        // 新しい順に並び替え
         docsArray.sort((a, b) => {
           const timeA = a.data.createdAt ? a.data.createdAt.toMillis() : Date.now();
           const timeB = b.data.createdAt ? b.data.createdAt.toMillis() : Date.now();
@@ -236,24 +283,24 @@
 
         docsArray.forEach((item) => {
           const log = item.data;
-          const docId = item.id;
-
           const isMyPost = currentUser && log.userId === currentUser.uid;
 
           const card = document.createElement("div");
           card.className = "card";
           card.innerHTML = `
-            <div>
-              <div class="card-title">${log.cropName}（${log.actionType}）</div>
-              <div style="font-size: 0.875rem; margin-top: 4px; color: #334155;">${log.memo || 'メモなし'}</div>
-              <div style="font-size: 0.75rem; color: #64748b; margin-top: 6px;">記録者: ${log.userName || '不明'}</div>
+            <div class="card-header">
+              <div>
+                <div class="card-title">${log.cropName}（${log.actionType}）</div>
+                <div style="font-size: 0.75rem; color: #64748b;">記録者: ${log.userName}</div>
+              </div>
+              ${isMyPost ? `<button class="btn btn-danger" onclick="deleteLog('${item.id}')">削除</button>` : ''}
             </div>
-            ${isMyPost ? `<button class="btn btn-danger" onclick="deleteLog('${docId}')">削除</button>` : ''}
+            ${log.imageUrl ? `<img src="${log.imageUrl}" class="card-img">` : ''}
+            <div style="font-size: 0.875rem; color: #334155; margin-top: 4px;">${log.memo || 'メモなし'}</div>
+            ${log.aiDiagnosis ? `<div class="ai-result-box"><strong>🤖 AIのアドバイス:</strong><br>${log.aiDiagnosis.replace(/\n/g, "<br>")}</div>` : ''}
           `;
           listEl.appendChild(card);
         });
-      }, (error) => {
-        console.error("Firestore Error:", error);
       });
     }
   </script>
